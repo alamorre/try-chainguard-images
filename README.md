@@ -1,9 +1,52 @@
 # Try Chainguard Images
 
-An agent skill that runs a safe, evidence-based Chainguard trial in
-the repo you are in.
+**How many of your CVEs are just your base image? Find out in one
+agent session — with proof, not a sales deck.**
 
-It works in five phases:
+Point your coding agent at a repo. It swaps your base images to
+Chainguard on a throwaway branch, builds and tests everything,
+scans before and after, and hands you one report: your CVE count,
+before → after, per service. Like the numbers? Keep the branch.
+Hate them? Delete it. Your `main` never changes, and the agent
+asks before it creates an account or spends anything.
+
+No Chainguard account? The skill sets up the free Catalog
+Starter plan for you, with your approval.
+
+## Quick start
+
+```bash
+# 1. Install the skill (once)
+npx skills add alamorre/try-chainguard-images -g
+
+# 2. Open your repo in your agent
+cd your-repo
+claude   # or your agent of choice
+```
+
+Then paste this prompt:
+
+```text
+Use the try-chainguard-images skill to run a Chainguard trial
+in this repo. Stop and ask me before you create an org and
+before you spend an image slot. Report each phase before
+you continue.
+```
+
+You need Docker running and `chainctl` installed. The skill
+checks both first and gives you the exact fix if one is missing.
+
+You get back:
+
+- A `chainguard-trial` branch with converted Dockerfiles.
+- Build and test results for every service.
+- `chainguard-trial/REPORT.md` — CVE before → after by severity,
+  image size change, what blocked and why, exact commands to
+  reproduce it, and how to undo.
+
+## How it works
+
+Five phases:
 
 1. **Discover** — find every image reference (Dockerfiles, Compose,
    Kubernetes, Helm, Terraform), classify each one, and take
@@ -41,7 +84,7 @@ server needs no sign-in:
 claude mcp add --transport http --scope user chainguard-docs https://mcp.edu.chainguard.dev/mcp
 ```
 
-## Install
+## Other install options
 
 Muse:
 
@@ -51,25 +94,8 @@ cd try-chainguard-images
 muse skills install .
 ```
 
-Other agents (skills CLI):
-
-```bash
-npx skills add alamorre/try-chainguard-images -g
-```
-
 Or copy this directory to `~/.agents/skills/try-chainguard-images`
 (read by most agent tools) or to `.agents/skills/` in a project.
-
-## Use
-
-Open your agent in the target repo and ask it to try Chainguard
-images. Example prompt:
-
-```text
-Use the try-chainguard-images skill to run a Chainguard trial
-in this repo. Stop and ask me before you create an org and
-before you spend an image slot.
-```
 
 ## Validate
 
