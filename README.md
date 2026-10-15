@@ -8,7 +8,7 @@ Chainguard on a throwaway branch, builds and tests everything,
 scans before and after, and hands you one report: your CVE count,
 before → after, per service. Like the numbers? Keep the branch.
 Hate them? Delete it. Your `main` never changes, and the agent
-asks before it creates an account or spends anything.
+shows you the Starter image list before it uses a slot.
 
 No Chainguard account? The skill sets up the free Catalog
 Starter plan for you, with your approval.
@@ -16,10 +16,6 @@ Starter plan for you, with your approval.
 ## Quick start
 
 ```bash
-# 1. Install the skill (once)
-npx skills add alamorre/try-chainguard-images -g
-
-# 2. Open your repo in your agent
 cd your-repo
 claude   # or your agent of choice
 ```
@@ -27,11 +23,17 @@ claude   # or your agent of choice
 Then paste this prompt:
 
 ```text
-Use the try-chainguard-images skill to run a Chainguard trial
-in this repo. Stop and ask me before you create an org and
-before you spend an image slot. Report each phase before
-you continue.
+Use this skill to migrate this repo's images to Chainguard:
+https://github.com/alamorre/try-chainguard-images
+
+If I don't have a Chainguard org, make a Catalog Starter
+(free self-serve) org for me.
 ```
+
+That is the whole setup. Your agent reads the skill from the
+link and runs it. It will still show you the exact image list
+before it uses a Starter image slot, because slots cannot be
+swapped later.
 
 You need Docker running and `chainctl` installed. The skill
 checks both first and gives you the exact fix if one is missing.
@@ -85,6 +87,12 @@ claude mcp add --transport http --scope user chainguard-docs https://mcp.edu.cha
 ```
 
 ## Other install options
+
+Install the skill once, so you do not need the link each time:
+
+```bash
+npx skills add alamorre/try-chainguard-images -g
+```
 
 Muse:
 
