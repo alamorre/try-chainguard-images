@@ -1,6 +1,6 @@
 ---
 name: try-chainguard-images
-description: "Trial-migrate the current repo to Chainguard images — discover image references, set up Catalog Starter access if needed, convert, build and test, scan before and after, and write a CVE reduction report: use when a user wants to try, evaluate, or test Chainguard images in a project."
+description: "Trial-migrate a project's container images to Chainguard. Discover images, set up Catalog Starter access if needed, convert, build, test, and compare scans. Deliver a project value PDF and a detailed Markdown report. Use when a user wants to try, evaluate, or test Chainguard images in a project."
 license: MIT
 ---
 
@@ -11,9 +11,11 @@ Five phases: discover, access, convert, test, scan and report. Finish
 each phase before you start the next. Show the user the result of each
 phase in a few lines before you continue.
 
-The deliverable is a branch named `chainguard-trial`, plus a report at
-`chainguard-trial/REPORT.md`. The user can delete the branch to undo
-everything.
+Deliver a branch named `chainguard-trial` with the converted files.
+Also deliver `chainguard-trial/REPORT.md` and a customer report at
+`chainguard-trial/VALUE-REPORT.pdf`. Keep `trial.json`, `metrics.json`,
+and the raw scans with the reports. These artifacts measure the change
+in this project. The user can delete the branch to remove the trial files.
 
 ## Rules
 
@@ -21,6 +23,7 @@ everything.
   (default name `chainguard-trial`). Never commit to the default
   branch. Never push unless the user asks.
 - Change image references, Dockerfiles, and deployment files only.
+  Also write trial evidence and reports under `chainguard-trial/`.
   Never change application source code, library versions, or lockfiles.
 - The user must name or confirm the Chainguard organization in this
   session. Never infer it from the repo, git remote, or config. Pass
@@ -37,8 +40,9 @@ everything.
 - Never guess a package name or image tag. Look it up (Phase 3).
 - Report numbers only from tool output you ran in this session.
   If a scan or test did not run, write "not run", never a guess.
-- Scan the old and new images with the same scanner and settings.
-  A CVE difference from two different scanners is not evidence.
+- Scan the old and new images with the same scanner version, database,
+  settings, and platform. Scan immutable image IDs. A difference from
+  incompatible scans is not evidence. Missing scans never count as zero.
 
 For deep `chainctl` command detail, load the `chainctl` skill if it
 is installed. This skill gives the workflow; that skill gives flags.
@@ -46,7 +50,10 @@ is installed. This skill gives the workflow; that skill gives flags.
 ## Tools this skill uses
 
 Required: `git`, `docker`, `chainctl`, `jq`, and one scanner
-(`grype` preferred, else `trivy`). Optional but preferred when
+(`grype` preferred, else `trivy`). The final PDF also needs Python 3.10
+or later and ReportLab. Use `uv run` to manage that dependency, or use
+a separate Python environment. See [the report guide](references/value-report.md).
+Optional but preferred when
 configured: the Chainguard MCP servers. Use them for facts, not
 guesses:
 
@@ -123,17 +130,27 @@ Say which source you used for each mapping in the report.
 4. Take the baseline now, before any edit. For each Dockerfile
    that builds today:
 
+   First read [the report guide](references/value-report.md). Create
+   `chainguard-trial/trial.json` with one entry per service in scope.
+   Save the scanner version, database identity, and effective settings.
+   Keep database updates off for baseline and after scans. Save full
+   image inspection data and scan each image by its immutable image ID.
+
    ```bash
    docker build -f <Dockerfile> -t trial-before:<name> <context>
-   grype trial-before:<name> -o json \
-     > chainguard-trial/baseline/<name>.json
    docker image inspect trial-before:<name> \
-     --format '{{.Size}}' >> chainguard-trial/baseline/sizes.txt
+     > chainguard-trial/baseline/<name>.image.json
+   # Read .Id from the inspection file and use it as <image-id>.
+   GRYPE_DB_AUTO_UPDATE=false grype docker:<image-id> -o json \
+     > chainguard-trial/baseline/<name>.json
    ```
 
-   Use `trivy image --format json` if `grype` is absent, and use
-   the same scanner again in Phase 5. Also pull and scan plain
-   `image:` references the same way. If a baseline build fails,
+   Record the image ID, platform, size in bytes, scan time, exact
+   command, and scan path in `trial.json`. Add a scan path only after
+   the command succeeds. Use the Trivy command and database controls
+   in the report guide if Grype is absent. Use the same scanner again
+   in Phase 5. Also pull and scan plain `image:` references the same way.
+   If a baseline build fails,
    record the failure and mark that service "baseline broken —
    excluded from CVE comparison".
 5. Show the user the inventory table. Ask which services are in
@@ -273,30 +290,53 @@ For each converted service, in order:
 5. Compare each result to the baseline state. A test that failed
    before conversion and fails after is "no change", not a
    regression. Say which case applies.
+6. Update each service entry in `chainguard-trial/trial.json`.
+   Record migration status, build, smoke test, and test results.
+   Copy the commands that ran. Explain blocked or skipped work and
+   application version changes. Use `not run` for checks that did not run.
 
 ## Phase 5 — Scan and report
 
 1. Scan every `trial-after:<name>` image with the same scanner
-   and flags as Phase 1. Save to `chainguard-trial/after/`.
-   Record new sizes next to the baseline sizes.
-2. Count CVEs by severity from the JSON files with `jq`. Count
-   only services scanned on both sides. For Chainguard-side
-   remainders, run `chainctl images advisories list <ref>` and
+   version, database, flags, and platform as Phase 1. Save image
+   inspection data and scan immutable image IDs. Save scans to
+   `chainguard-trial/after/`. Complete the `after` entries in `trial.json`.
+   If the scanner or database changed, scan both saved image IDs again
+   with one configuration. Keep the original baseline evidence.
+2. For Chainguard-side remainders, run
+   `chainctl images advisories list <ref>` and
    note the status (for example `pending-upstream`). Never read
    `analysis-not-planned` as "not vulnerable".
-3. Write `chainguard-trial/REPORT.md` with this structure:
+3. Generate the customer PDF with the bundled script. Follow
+   [the report guide](references/value-report.md) for the input schema,
+   counting rules, dependency setup, and PDF checks.
+
+   ```bash
+   uv run <skill-dir>/scripts/generate_report.py chainguard-trial/trial.json
+   ```
+
+   The script writes `VALUE-REPORT.pdf` and `metrics.json` beside the
+   manifest. It computes the PDF and metrics from one data model.
+   It excludes incomplete or incompatible scan pairs and failed
+   conversions from totals. It shows exclusion reasons and test status.
+   It handles zero baselines and increases without a false reduction claim.
+   Check every PDF page before delivery. Do not hand-edit the PDF numbers.
+4. Write `chainguard-trial/REPORT.md` with this structure. Copy all
+   summary numbers from `metrics.json`. Call scanner matches findings,
+   because they can include other advisory IDs and repeated CVEs.
 
    ```markdown
    # Chainguard Trial Report
    Date, repo, branch `chainguard-trial`, org, scanner + version.
 
    ## Summary
-   Services in scope N. Migrated X. Blocked Y. Skipped (no
-   equivalent) Z. Total CVEs before A, after B (reduction C%).
-   Critical/High before → after. Total image size before → after.
+   Services in scope N. Migrated X. Blocked Y. Skipped Z. Pending P.
+   Comparable services M of N. Findings before A, after B (reduction C%).
+   Critical/High before → after. Image size before → after, with coverage.
+   Link VALUE-REPORT.pdf, metrics.json, trial.json, and the raw scans.
 
    ## Per-service results
-   | Service | Before | After | Build | Tests | CVEs before → after | Size before → after |
+   | Service | Before | After | Build | Tests | Findings before → after | Size before → after |
    Use exact refs with tags. One row per service.
 
    ## Remaining CVEs
@@ -321,7 +361,9 @@ For each converted service, in order:
    entitlements for the blocked and path C images.
    ```
 
-4. Show the user `git diff --stat` and the report summary. Ask
+5. Show the user `git diff --stat` and the report summary. Link the
+   customer PDF, detailed Markdown report, and evidence. State any
+   exclusions, missing tests, or report generation failure. Ask
    before you commit. If yes, commit on `chainguard-trial` only,
    including the `chainguard-trial/` folder. Do not push unless
    the user asks.
