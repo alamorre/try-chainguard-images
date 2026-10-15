@@ -1,17 +1,16 @@
 # Try Chainguard Images
 
-**How many of your CVEs are just your base image? Find out in one
-agent session — with proof, not a sales deck.**
+The `$try-chainguard-images` skill lets a coding agent migrate
+a repo's container images to Chainguard at no charge and
+measure the risk reduction.
 
-Point your coding agent at a repo. It swaps your base images to
-Chainguard on a throwaway branch, builds and tests everything,
-scans before and after, and hands you one report: your CVE count,
-before → after, per service. Like the numbers? Keep the branch.
-Hate them? Delete it. Your `main` never changes, and the agent
-shows you the Starter image list before it uses a slot.
-
-No Chainguard account? The skill sets up the free Catalog
-Starter plan for you, with your approval.
+The agent inventories every image reference in the repo,
+creates a free Catalog Starter org if you have none, converts
+your Dockerfiles on a `chainguard-trial` branch, builds and
+tests each service, and scans the old and new images with the
+same scanner. You get one report: CVE count before → after per
+service, image size change, and the exact commands to
+reproduce or undo the trial. `main` is never touched.
 
 ## Quick start
 
